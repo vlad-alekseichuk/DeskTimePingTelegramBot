@@ -1,80 +1,88 @@
-import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
+import requests
+import pytz
+from datetime import datetime
 
-# Этапы диалога
-URL, TOKEN, FIELD = range(3)
-
-# Храним данные пользователя
+# Словарь для хранения данных пользователей
 user_data = {}
 
+# Этапы диалога
+TOKEN = range(1)
 
+# Функция для проверки статуса isOnline
+async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
+    kiev_tz = pytz.timezone("Europe/Kiev")
+    current_time = datetime.now(kiev_tz).hour  # Текущее время в Киеве (по часам)
+
+    # Проверяем, что время в пределах с 9 до 18
+    if 9 <= current_time < 18:
+        for user_id, data in user_data.items():
+            token = data['token']
+            url = f"https://desktime.com/api/v2/json/employee?apiKey={token}"
+
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                data = response.json()
+
+                # Проверяем поле isOnline
+                is_online = data.get("isOnline", None)
+
+                if is_online is False:
+                    await context.bot.send_message(user_id, "⚠️ Внимание! Пользователь не в сети (isOnline: false).")
+
+            except Exception as e:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="❌ Ошибка при запросе. Мониторинг остановлен. Проверь токен."
+                )
+                print(f"[Ошибка] user {user_id}: {e}")
+                del user_data[user_id]
+    else:
+        print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
+
+# Стартовая команда
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Отправь мне ссылку для запроса.")
-    return URL
-
-
-async def get_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id] = {'url': update.message.text}
-    await update.message.reply_text("Теперь отправь токен.")
+    await update.message.reply_text("Привет! Отправь мне токен, чтобы я мог отслеживать статус.")
     return TOKEN
 
-
+# Обработка токена
 async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.effective_user.id]['token'] = update.message.text
-    await update.message.reply_text("Какое поле из JSON тебе нужно?")
-    return FIELD
+    token = update.message.text.strip()
 
+    # Сохраняем токен для пользователя
+    user_data[update.effective_user.id] = {'token': token}
 
-async def get_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    field = update.message.text
-    info = user_data.get(uid, {})
+    # Отправляем сообщение о начале отслеживания
+    await update.message.reply_text("Токен принят! Я буду проверять статус пользователя каждые 5 минут.")
 
-    url = info.get('url')
-    token = info.get('token')
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-
-        value = data.get(field, "Поле не найдено в JSON.")
-        await update.message.reply_text(f"{field}: {value}")
-    except requests.exceptions.RequestException as e:
-        await update.message.reply_text(f"Ошибка запроса: {e}")
-    except ValueError:
-        await update.message.reply_text("Ошибка при разборе JSON.")
+    # Запуск задачи с интервалом 5 минут
+    app.job_queue.run_repeating(check_is_online, interval=300, first=0)
 
     return ConversationHandler.END
 
-
+# Отмена операции
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Отменено.")
+    await update.message.reply_text("Операция отменена.")
     return ConversationHandler.END
 
-
-# Запуск бота
 if __name__ == '__main__':
-    import os
+    TELEGRAM_BOT_TOKEN = "8176513049:AAEulVkIfxIvxjkSA1bzzb_RC6SEze6cWik"  # Замени на свой токен
 
-    TELEGRAM_TOKEN = "ТВОЙ_ТОКЕН_БОТА"  # Вставь сюда токен Telegram-бота
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
+    # Создание обработчика разговоров
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_url)],
             TOKEN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_token)],
-            FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_field)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
     app.add_handler(conv_handler)
 
+    # Запуск бота
     print("Бот запущен...")
     app.run_polling()
