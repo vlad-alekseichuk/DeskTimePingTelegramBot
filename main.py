@@ -17,38 +17,39 @@ async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем, что время в пределах с 9 до 18
     if 9 <= current_time < 18:
-        to_delete = []  # Сюда будем складывать пользователей с ошибками
-
-        for user_id, data in user_data.items():
-            token = data['token']
-            url = f"https://desktime.com/api/v2/json/employee?apiKey={token}"
-            print("запрос...")
-
-            try:
-                response = requests.get(url)
-                response.raise_for_status()
-                data = response.json()
-
-                # Проверяем поле isOnline
-                is_online = data.get("isOnline", None)
-
-                if is_online is False:
-                    await context.bot.send_message(user_id, "⚠️ Внимание! Пользователь не в сети (isOnline: false).")
-
-            except Exception as e:
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text="❌ Ошибка при запросе. Мониторинг остановлен. Проверь токен."
-                )
-                print(f"[Ошибка] user {user_id}: {e}")
-                to_delete.append(user_id)  # Отложим удаление
-
-        # Удаляем после итерации
-        for user_id in to_delete:
-            del user_data[user_id]
-
+        await check(context)
     else:
         print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
+
+
+async def check(context):
+    to_delete = []  # Сюда будем складывать пользователей с ошибками
+    for user_id, data in user_data.items():
+        token = data['token']
+        url = f"https://desktime.com/api/v2/json/employee?apiKey={token}"
+        print("запрос...")
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            # Проверяем поле isOnline
+            is_online = data.get("isOnline", None)
+
+            if is_online is False:
+                await context.bot.send_message(user_id, "⚠️ Внимание! Пользователь не в сети (isOnline: false).")
+
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="❌ Ошибка при запросе. Мониторинг остановлен. Проверь токен."
+            )
+            print(f"[Ошибка] user {user_id}: {e}")
+            to_delete.append(user_id)  # Отложим удаление
+    # Удаляем после итерации
+    for user_id in to_delete:
+        del user_data[user_id]
 
 # Стартовая команда
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,7 +64,8 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[update.effective_user.id] = {'token': token}
 
     # Отправляем сообщение о начале отслеживания
-    await update.message.reply_text("Токен принят! Я буду проверять статус пользователя каждые 5 минут.")
+    await update.message.reply_text("Токен принят! Я буду проверять статус пользователя каждую 1 минуту.")
+    await check(context)
 
     # Запуск задачи с интервалом 5 минут
     app.job_queue.run_repeating(check_is_online, interval=30, first=0)
