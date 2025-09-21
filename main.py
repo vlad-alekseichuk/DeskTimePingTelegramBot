@@ -17,9 +17,12 @@ async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем, что время в пределах с 9 до 18
     if 9 <= current_time < 18:
+        to_delete = []  # Сюда будем складывать пользователей с ошибками
+
         for user_id, data in user_data.items():
             token = data['token']
             url = f"https://desktime.com/api/v2/json/employee?apiKey={token}"
+            print("запрос...")
 
             try:
                 response = requests.get(url)
@@ -38,7 +41,12 @@ async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
                     text="❌ Ошибка при запросе. Мониторинг остановлен. Проверь токен."
                 )
                 print(f"[Ошибка] user {user_id}: {e}")
-                del user_data[user_id]
+                to_delete.append(user_id)  # Отложим удаление
+
+        # Удаляем после итерации
+        for user_id in to_delete:
+            del user_data[user_id]
+
     else:
         print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
 
@@ -58,7 +66,7 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Токен принят! Я буду проверять статус пользователя каждые 5 минут.")
 
     # Запуск задачи с интервалом 5 минут
-    app.job_queue.run_repeating(check_is_online, interval=300, first=0)
+    app.job_queue.run_repeating(check_is_online, interval=30, first=0)
 
     return ConversationHandler.END
 
