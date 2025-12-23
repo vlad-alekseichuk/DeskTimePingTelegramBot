@@ -1,14 +1,16 @@
+from datetime import datetime
+
+import pytz
+import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
-import requests
-import pytz
-from datetime import datetime
 
 # Словарь для хранения данных пользователей
 user_data = {}
 
 # Этапы диалога
 TOKEN = range(1)
+
 
 # Функция для проверки статуса isOnline
 async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
@@ -53,10 +55,12 @@ async def check(context):
     for user_id in to_delete:
         del user_data[user_id]
 
+
 # Стартовая команда
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет! Отправь мне токен, чтобы я мог отслеживать статус.")
     return TOKEN
+
 
 # Обработка токена
 async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,10 +78,12 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+
 # Отмена операции
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Операция отменена.")
     return ConversationHandler.END
+
 
 if __name__ == '__main__':
     TELEGRAM_BOT_TOKEN = "8176513049:AAEulVkIfxIvxjkSA1bzzb_RC6SEze6cWik"  # Замени на свой токен
