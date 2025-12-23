@@ -13,10 +13,12 @@ TOKEN = range(1)
 # Функция для проверки статуса isOnline
 async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
     kiev_tz = pytz.timezone("Europe/Kiev")
-    current_time = datetime.now(kiev_tz).hour  # Текущее время в Киеве (по часам)
+    now = datetime.now(kiev_tz)
+    current_time = now.hour
+    weekday = now.weekday()  # 0 = понедельник, 6 = воскресенье
 
     # Проверяем, что время в пределах с 9 до 18
-    if 9 <= current_time < 18:
+    if 9 <= current_time < 18 and weekday < 5:
         await check(context)
     else:
         print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
