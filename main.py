@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import pytz
@@ -86,7 +87,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == '__main__':
-    TELEGRAM_BOT_TOKEN = "8176513049:AAEulVkIfxIvxjkSA1bzzb_RC6SEze6cWik"  # Замени на свой токен
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
