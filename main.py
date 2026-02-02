@@ -21,7 +21,7 @@ async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
     weekday = now.weekday()  # 0 = понедельник, 6 = воскресенье
 
     # Проверяем, что время в пределах с 9:00 до 13:10
-    if time(9, 0) <= current_time < time(13, 10) and weekday < 5:
+    if time(11, 0) <= current_time < time(15, 0) and weekday < 5:
         await check(context)
     else:
         print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
