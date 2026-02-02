@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, time
 
 import pytz
 import requests
@@ -17,11 +17,11 @@ TOKEN = range(1)
 async def check_is_online(context: ContextTypes.DEFAULT_TYPE):
     kiev_tz = pytz.timezone("Europe/Kiev")
     now = datetime.now(kiev_tz)
-    current_time = now.hour
+    current_time = now.time()
     weekday = now.weekday()  # 0 = понедельник, 6 = воскресенье
 
-    # Проверяем, что время в пределах с 9 до 18
-    if 9 <= current_time < 18 and weekday < 5:
+    # Проверяем, что время в пределах с 9:00 до 13:10
+    if time(9, 0) <= current_time < time(13, 10) and weekday < 5:
         await check(context)
     else:
         print(f"Запросы не выполняются. Текущее время: {current_time} (по Киеву)")
